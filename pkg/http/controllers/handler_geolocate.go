@@ -19,17 +19,25 @@ func (h *Handler) Geolocate(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("geolocate"))
 }
 
-func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) geolocate(w http.ResponseWriter, r *http.Request) (*integrations.GeolocateResult, bool) {
 	file, header, err := r.FormFile("img")
 	if err != nil {
 		http.Error(w, "missing img file", http.StatusBadRequest)
-		return
+		return nil, false
 	}
 	defer file.Close()
 
 	result, err := h.Geomanji.Geolocate(header.Filename, file)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
+		return nil, false
+	}
+	return result, true
+}
+
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+	result, ok := h.geolocate(w, r)
+	if !ok {
 		return
 	}
 
@@ -43,16 +51,8 @@ type SearchMapsResult struct {
 }
 
 func (h *Handler) SearchMaps(w http.ResponseWriter, r *http.Request) {
-	file, header, err := r.FormFile("img")
-	if err != nil {
-		http.Error(w, "missing img file", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
-	result, err := h.Geomanji.Geolocate(header.Filename, file)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+	result, ok := h.geolocate(w, r)
+	if !ok {
 		return
 	}
 
@@ -60,5 +60,23 @@ func (h *Handler) SearchMaps(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(SearchMapsResult{
 		GeolocateResult: *result,
 		MapsLink:        integrations.GoogleMapsLink(result.Latitude, result.Longitude),
+	})
+}
+
+type SearchEarthResult struct {
+	integrations.GeolocateResult
+	EarthLink string `json:"EarthLink"`
+}
+
+func (h *Handler) SearchEarth(w http.ResponseWriter, r *http.Request) {
+	result, ok := h.geolocate(w, r)
+	if !ok {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(SearchEarthResult{
+		GeolocateResult: *result,
+		EarthLink:       integrations.GoogleEarthLink(result.Latitude, result.Longitude),
 	})
 }

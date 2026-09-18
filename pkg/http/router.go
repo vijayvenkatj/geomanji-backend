@@ -12,6 +12,7 @@ func NewRouter(h *controllers.Handler) http.Handler {
 	mux.HandleFunc("GET /geolocate", h.Geolocate)
 	mux.HandleFunc("POST /search", h.Search)
 	mux.HandleFunc("POST /search/maps", h.SearchMaps)
+	mux.HandleFunc("POST /search/earth", h.SearchEarth)
 
 	return mux
 }
